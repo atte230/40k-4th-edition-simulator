@@ -1,0 +1,17 @@
+{
+  "id": "raid_supply",
+  "name": "Raid the Supply Convoy",
+  "description": "A fast-paced mission: secure the enemy supply cache and extract it to your extraction zone before time runs out.",
+  "map_scene": "res://maps/raid_supply.tscn",
+  "enemy_roster": [
+    { "unit_type": "Ork_Boy", "count": 5, "spawn_zone": "east" },
+    { "unit_type": "Ork_Gunner", "count": 2, "spawn_zone": "east" }
+  ],
+  "time_limit": 10,
+  "objectives": [
+    { "id": "secure_crate", "type": "retrieve", "description": "Pick up the supply crate and bring it to the extraction zone." },
+    { "id": "exfiltrate", "type": "reach_zone", "description": "Bring the crate to the extraction zone at the north edge of the map." }
+  ],
+  "victory_criteria": { "type": "retrieve_and_extract" },
+  "rewards": { "xp": 75, "resources": 35 }
+}

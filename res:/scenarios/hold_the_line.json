@@ -1,0 +1,17 @@
+{
+  "id": "hold_the_line",
+  "name": "Hold The Line",
+  "description": "Defend a series of objective points against waves of attackers. Hold all objectives for the required number of turns to win.",
+  "map_scene": "res://maps/hold_the_line.tscn",
+  "enemy_roster": [
+    { "unit_type": "Ork_Boy", "count": 8, "spawn_zone": "south" },
+    { "unit_type": "Ork_Bomb", "count": 2, "spawn_zone": "south" }
+  ],
+  "time_limit": 20,
+  "objectives": [
+    { "id": "alpha_point", "type": "hold_point", "description": "Hold Alpha point for 3 consecutive turns", "hold_turns": 3 },
+    { "id": "beta_point", "type": "hold_point", "description": "Hold Beta point for 3 consecutive turns", "hold_turns": 3 }
+  ],
+  "victory_criteria": { "type": "hold_points", "required_consecutive_turns": 3 },
+  "rewards": { "xp": 100, "resources": 20 }
+}
