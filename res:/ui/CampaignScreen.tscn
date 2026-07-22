@@ -1,0 +1,8 @@
+[gd_scene load_steps=1 format=4]
+
+[ext_resource path="res://ui/CampaignScreen.gd" type="Script" id=1]
+
+[node name="CampaignScreen" type="Control"]
+script = ExtResource( 1 )
+
+# A minimal scene; expand in the editor to add buttons/labels and wire to the script

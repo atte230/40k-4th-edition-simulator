@@ -1,0 +1,15 @@
+{
+  "id": "first_blood",
+  "name": "First Blood",
+  "description": "A short skirmish to test force deployment and basic combat. Ideal as an intro scenario.",
+  "map_scene": "res://maps/first_blood.tscn",
+  "enemy_roster": [
+    { "unit_type": "Ork_Boy", "count": 6, "spawn_zone": "north" }
+  ],
+  "time_limit": 12,
+  "objectives": [
+    { "id": "kill_all", "type": "elimination", "description": "Destroy all enemy forces" }
+  ],
+  "victory_criteria": { "type": "elimination" },
+  "rewards": { "xp": 50 }
+}
