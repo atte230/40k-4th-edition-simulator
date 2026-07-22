@@ -221,15 +221,144 @@ Main.tscn
 
 ---
 
-## 🎯 Phase 4: Scenarios & Campaign (Next)
+## 🎯 Phase 4: Scenarios & Campaign (Design & Implementation)
 
-When ready, Phase 4 will add:
-- Additional scenarios beyond "First Blood"
-- Campaign progression system
-- Unit damage/experience tracking
-- Scenario victory conditions
-- Briefing text and narrative
-- Save/load campaigns
+Phase 4 expands the playable content beyond a single "First Blood" scenario and introduces a lightweight campaign system so players can run linked scenarios, track unit experience and damage between scenarios, and save/load campaign progress.
+
+### Goals (high level)
+- Provide multiple scenario types (skirmish, objective, assault)
+- Track squad-level and unit-level progression (experience, wounds, injuries)
+- Define flexible victory/lose conditions per scenario
+- Add briefing/mission text and simple narrative flow
+- Implement persistent save/load for campaigns (JSON-based)
+- Expose in-game UI for campaign management and scenario selection
+
+### UX / Flow
+1. Player opens Campaign Screen → New Campaign / Load Campaign
+2. If New: choose faction, roster (predefined or custom), and starting scenario
+3. Play scenario (existing GameLoop) with ScenarioManager active
+4. At scenario end: ScenarioManager evaluates victory conditions and rewards
+   - Apply XP to surviving units
+   - Track accumulated damage and apply injuries/wounds
+   - Add campaign-level resources or story flags
+5. Progress to next scenario (branching or linear) or return to campaign map
+6. Save campaign state automatically and via manual save
+
+### Core Systems to Implement
+- ScenarioManager.gd
+  - Loads scenario definitions (metadata + setup rules)
+  - Spawns units/forces according to scenario file
+  - Manages scenario-specific victory conditions and triggers
+  - Emits signals: scenario_started, scenario_ended(result, summary)
+
+- CampaignManager.gd
+  - Campaign data model (roster, current_scenario_id, flags, resources)
+  - Handles progression rules (which scenario unlocks next)
+  - Applies post-scenario effects (XP, injuries, roster updates)
+  - Interfaces with SaveLoad system
+
+- SaveLoad.gd
+  - Serialize/deserialize campaign state to disk (user://campaigns/*.json)
+  - Keep versioning field for backward compatibility
+  - Provide autosave and manual save APIs
+
+- Scenario definitions (YAML/JSON)
+  - id, name, description, map_scene, enemy_roster, objectives, time_limit, victory_criteria
+  - Example file: res://scenarios/first_blood.json
+
+- UI
+  - CampaignScreen.tscn / CampaignScreen.gd (create/load/delete campaigns)
+  - ScenarioBriefing.tscn (shows objectives, briefing text, rewards)
+  - PostScenarioSummary.tscn (shows casualties, XP gained, injuries)
+
+### Data Model (proposal)
+Campaign JSON structure (example):
+{
+  "version": 1,
+  "id": "ember_campaign_001",
+  "player_faction": "Space Marines",
+  "roster": [
+    {
+      "unit_id": "termies_1",
+      "name": "Brother A",
+      "type": "Terminator",
+      "xp": 0,
+      "wounds": 2,
+      "injuries": []
+    }
+  ],
+  "current_scenario": "first_blood",
+  "completed_scenarios": ["first_blood"],
+  "flags": {}
+}
+
+Save considerations:
+- Save to user://campaigns/<campaign_id>.json
+- Include timestamp and engine version
+- Keep files reasonably small (no scene deep-dumps) — store roster and minimal unit state
+
+### Unit Progression & Damage
+- XP system: survivors gain XP based on actions (kills, objectives, assists)
+- XP thresholds unlock bonuses (e.g., +1 WS at 10 XP)
+- Damage persistence: track wounds, accumulated damage; when wounds exceed threshold, apply "injury" status
+- Injuries can be temporary (require rest) or permanent (affect stats)
+- Provide simple UI to spend XP between scenarios (level up screen)
+
+### Victory Conditions (flexible rules)
+- Destroy enemy forces (all enemy units down)
+- Hold objective points for N turns
+- Survive for T turns
+- Retrieve item/objective on map
+
+Scenario definition includes a small scriptable rule set (JSON fields plus optional GDScript hooks for complex cases).
+
+### File/Code Changes (suggested)
+- Add: res://managers/ScenarioManager.gd
+- Add: res://managers/CampaignManager.gd
+- Add: res://managers/SaveLoad.gd
+- Add: res://ui/CampaignScreen.tscn + CampaignScreen.gd
+- Add: res://scenarios/*.json (scenario definitions)
+- Update: GameLoop.gd to optionally consult ScenarioManager when running a campaign
+- Update: Unit.gd to include persistent identity (unit_id) and xp/wounds fields
+
+### API & Signals
+- ScenarioManager signals:
+  - signal scenario_started(scenario_id)
+  - signal scenario_ended(scenario_id, result:Dictionary)
+- CampaignManager API:
+  - new_campaign(definition:Dictionary)
+  - load_campaign(campaign_id:String)
+  - save_campaign(campaign_id:String)
+  - apply_scenario_result(result:Dictionary)
+
+### Persistence & Versioning
+- Include a "version" field at top-level of saved JSON
+- Migrate on load if version < current
+- Back up old saves before overwriting
+
+### Priority Checklist (Phase 4 MVP)
+- [ ] ScenarioManager core (load scenario, spawn forces)
+- [ ] CampaignManager (create/load/save campaign state)
+- [ ] SaveLoad implementation (JSON file IO + versioning)
+- [ ] Add 3 sample scenarios: first_blood.json (existing), hold_the_line.json, raid_supply.json
+- [ ] UI: Campaign screen + scenario briefing + post-scenario summary
+- [ ] Unit persistence: unit_id, xp, wounds, injuries
+- [ ] Victory condition engine (basic types)
+- [ ] Post-scenario rewards / XP assignment
+- [ ] Autosave on scenario end
+
+### Nice-to-have (Phase 4+)
+- Branching scenario map (map view showing progress and choices)
+- Recruit / buy new units between scenarios
+- Campaign modifiers (difficulty, narrative choices)
+- Cloud sync (GitHub Gist or user account) — out of scope for MVP
+
+### Implementation Notes & Tips
+- Keep scenario definitions data-driven: prefer JSON files for easy editing and modding
+- Avoid serializing whole SceneTree — only store identifiers and small unit state
+- Use Godot's File and JSON APIs (FileAccess.open, JSON.parse_string / to_json)
+- Write unit tests for SaveLoad migration cases
+- Keep signals small and descriptive to decouple GameLoop from campaign logic
 
 ---
 
