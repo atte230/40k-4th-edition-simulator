@@ -1,0 +1,14 @@
+[gd_scene load_steps=2 format=3]
+
+[node name="NotificationLayer" type="CanvasLayer"]
+script = null
+
+[node name="Panel" type="Panel" parent="."]
+rect_min_size = Vector2(600, 100)
+margin_left = 0.0
+margin_top = 0.0
+margin_right = 0.0
+margin_bottom = 100.0
+
+[node name="Label" type="Label" parent="Panel"]
+horizontal_alignment = 1
