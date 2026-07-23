@@ -8,6 +8,7 @@ extends Node
 # - Spawn units from scenario definitions (best-effort: looks for res://units/<unit_type>.tscn)
 # - Apply campaign results and autosave on scenario end
 # - Use DeploymentManager for deployment-aware spawn placement
+# - Handle player + enemy deployment, with D6 roll to decide who deploys first
 
 @tool
 class_name GameLoop
@@ -15,6 +16,7 @@ class_name GameLoop
 var scenario_manager: Node = null
 var campaign_manager: Node = null
 var deployment_manager: Node = null
+var rng := RandomNumberGenerator.new()
 
 # Where to parent spawned units (set in inspector or discovered at runtime)
 @export_node_path(NodePath) var units_root_path: NodePath = NodePath("/root/Main/Board/Units")
@@ -22,6 +24,7 @@ var units_root: Node = null
 
 func _ready() -> void:
 	print("GameLoop: initializing Phase 4 hooks...")
+	rng.randomize()
 	# Find or create managers
 	scenario_manager = _find_or_create_manager("/root/ScenarioManager", "res://managers/ScenarioManager.gd")
 	campaign_manager = _find_or_create_manager("/root/CampaignManager", "res://managers/CampaignManager.gd")
@@ -69,7 +72,8 @@ func _on_scenario_started(scenario_id:String) -> void:
 	if scenario_manager:
 		scenario = scenario_manager.get_scenario(scenario_id)
 	if scenario != null and scenario.size() > 0:
-		spawn_forces_from_scenario(scenario)
+		# Start deployment flow (player + enemy)
+		start_deployment_flow(scenario)
 
 func _on_scenario_ended(scenario_id:String, result:Dictionary) -> void:
 	print("GameLoop: scenario ended -> %s | result: %s" % [scenario_id, result])
@@ -83,39 +87,114 @@ func _on_scenario_ended(scenario_id:String, result:Dictionary) -> void:
 		else:
 			push_error("GameLoop: failed to autosave campaign after scenario end")
 
-func spawn_forces_from_scenario(scenario:Dictionary) -> void:
-	var roster = scenario.get("enemy_roster", [])
-	# Group unit entries per spawn_zone so we can request positions per zone
-	var zone_map := {}
-	for unit_def in roster:
-		var zone = unit_def.get("spawn_zone", "opposite")
-		if not zone_map.has(zone):
-			zone_map[zone] = []
-		zone_map[zone].append(unit_def)
+# ---------------- Deployment Flow -----------------
+func start_deployment_flow(scenario:Dictionary) -> void:
+	# Determine rosters
+	var player_roster: Array = []
+	if scenario.has("player_roster"):
+		player_roster = scenario.get("player_roster")
+	elif campaign_manager != null:
+		player_roster = campaign_manager.get_roster()
+	
+	var enemy_roster: Array = scenario.get("enemy_roster", [])
 
-	# For each zone, compute positions and spawn
-	for zone in zone_map.keys():
-		# Total units to place in this zone (sum of counts)
-		var total_count = 0
-		for ud in zone_map[zone]:
-			total_count += int(ud.get("count", 1))
-		# Ask DeploymentManager for positions
-		var positions = []
-		if deployment_manager and deployment_manager.has_method("get_positions"):
-			positions = deployment_manager.call("get_positions", zone, total_count, get_node_or_null("/root/Main/Board"))
+	# Determine spawn zones
+	var enemy_zone = "north"
+	# try to read zone from scenario enemy_roster first entry
+	if enemy_roster.size() > 0 and enemy_roster[0] is Dictionary and enemy_roster[0].has("spawn_zone"):
+		enemy_zone = str(enemy_roster[0].get("spawn_zone"))
+	var player_zone = scenario.get("player_zone", opposite_zone(enemy_zone))
+
+	# Decide who deploys first by rolling D6 each (reroll ties)
+	var rolls := {}
+	var winner = ""
+	while true:
+		var player_roll = roll_d6()
+		var enemy_roll = roll_d6()
+		rolls["player"] = player_roll
+		rolls["enemy"] = enemy_roll
+		print("Deployment rolls -> player: %d, enemy: %d" % [player_roll, enemy_roll])
+		if player_roll > enemy_roll:
+			winner = "player"
+			break
+		elif enemy_roll > player_roll:
+			winner = "enemy"
+			break
 		else:
-			# Fallback: simple line along edge
-			positions = _compute_fallback_positions(zone, total_count)
+			print("Tie on deployment roll (%d). Rerolling..." % player_roll)
 
-		# Assign positions to each unit instance
-		var pos_index = 0
-		for ud in zone_map[zone]:
-			var count = int(ud.get("count", 1))
-			for i in range(count):
-				var pos = positions[pos_index] if pos_index < positions.size() else Vector3.ZERO
-				spawn_unit_by_type(ud.get("unit_type", ""), ud, pos)
-				pos_index += 1
+	print("Deployment order decided: %s deploys first (rolls: %s)" % [winner, str(rolls)])
 
+	# Perform deployments: winner deploys full force then loser
+	if winner == "player":
+		spawn_roster(player_roster, player_zone, true)
+		spawn_roster(enemy_roster, enemy_zone, false)
+	else:
+		spawn_roster(enemy_roster, enemy_zone, false)
+		spawn_roster(player_roster, player_zone, true)
+
+func roll_d6() -> int:
+	return rng.randi_range(1, 6)
+
+func opposite_zone(zone:String) -> String:
+	var z = zone.to_lower()
+	match z:
+		"north": return "south"
+		"south": return "north"
+		"east": return "west"
+		"west": return "east"
+		"ne", "northeast": return "sw"
+		"nw", "northwest": return "se"
+		"se", "southeast": return "nw"
+		"sw", "southwest": return "ne"
+		_:
+			return "south"
+
+# Spawn a roster (either scenario-formatted roster entries or campaign roster entries)
+func spawn_roster(roster:Array, zone:String, is_player:bool=false) -> void:
+	if roster == null or roster.size() == 0:
+		print("spawn_roster: empty roster for %s" % (is_player ? "player" : "enemy"))
+		return
+
+	# Build a flat list of unit types to spawn and keep original unit dicts (for unit_id mapping)
+	var spawn_list := []
+	for entry in roster:
+		if typeof(entry) == TYPE_DICTIONARY:
+			# scenario-style entry may have unit_type and count
+			if entry.has("unit_type"):
+				var count = int(entry.get("count", 1))
+				for i in range(count):
+					spawn_list.append({"unit_type": entry.get("unit_type"), "meta": entry})
+			# campaign roster entries might have 'type' or 'unit_type'
+			elif entry.has("type") or entry.has("unit_id"):
+				var ut = entry.get("type", entry.get("unit_type", "Generic"))
+				spawn_list.append({"unit_type": ut, "meta": entry})
+		else:
+			# fallback: entry is string type
+			spawn_list.append({"unit_type": str(entry), "meta": {}})
+
+	var total = spawn_list.size()
+	if total == 0:
+		return
+
+	# Ask deployment_manager for positions
+	var board_node = get_node_or_null("/root/Main/Board")
+	var positions = []
+	if deployment_manager and deployment_manager.has_method("get_positions"):
+		positions = deployment_manager.call("get_positions", zone, total, board_node)
+	else:
+		# fallback compute
+		positions = _compute_fallback_positions(zone, total)
+
+	# Spawn units at assigned positions
+	for i in range(total):
+		var spec = spawn_list[i]
+		var utype = spec.get("unit_type", "Generic")
+		var meta = spec.get("meta", {})
+		var pos = positions[i] if i < positions.size() else Vector3.ZERO
+		spawn_unit_by_type(utype, meta, pos)
+
+# Existing spawn helper (unchanged)
 func spawn_unit_by_type(unit_type:String, unit_def:Dictionary, position:Vector3 = Vector3.ZERO) -> Node:
 	# Best-effort: look for PackedScene at res://units/<unit_type>.tscn
 	var scene_path = "res://units/%s.tscn" % unit_type
@@ -124,7 +203,13 @@ func spawn_unit_by_type(unit_type:String, unit_def:Dictionary, position:Vector3 
 		var inst = ps.instantiate()
 		# Attempt to set persistent unit id if the Unit script exposes one
 		if inst.has_method("set_unit_id"):
-			inst.call("set_unit_id", "%s_%s" % [unit_type, str(OS.get_unix_time())])
+			# prefer unit_def.unit_id if present
+			var uid = ""
+			if typeof(unit_def) == TYPE_DICTIONARY and unit_def.has("unit_id"):
+				uid = str(unit_def.get("unit_id"))
+			if uid == "":
+				uid = "%s_%s" % [unit_type, str(OS.get_unix_time())]
+			inst.call("set_unit_id", uid)
 		# Place at position
 		if inst is Node3D:
 			inst.global_transform.origin = position
@@ -141,7 +226,9 @@ func spawn_unit_by_type(unit_type:String, unit_def:Dictionary, position:Vector3 
 			node.set_script(unit_scene_script)
 			node.name = "%s_placeholder" % unit_type
 			# Try to set unit_id if method exists
-			if node.has_method("set_unit_id"):
+			if node.has_method("set_unit_id") and typeof(unit_def) == TYPE_DICTIONARY and unit_def.has("unit_id"):
+				node.call("set_unit_id", str(unit_def.get("unit_id")))
+			elif node.has_method("set_unit_id"):
 				node.call("set_unit_id", "%s_%s" % [unit_type, str(OS.get_unix_time())])
 		# Place at position
 		node.global_transform.origin = position
