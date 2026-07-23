@@ -1,0 +1,18 @@
+{
+  "id": "ork_boy_template",
+  "name": "Ork Boy",
+  "type": "Ork_Boy",
+  "ws": 3,
+  "bs": 3,
+  "s": 4,
+  "t": 4,
+  "w": 1,
+  "a": 1,
+  "i": 3,
+  "ld": 7,
+  "sv": 6,
+  "movement": 6,
+  "weapons": [
+    { "name": "Slugga", "shots": 1, "S": 4, "AP": 0, "damage": 1 }
+  ]
+}

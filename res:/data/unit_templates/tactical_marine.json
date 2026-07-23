@@ -1,0 +1,18 @@
+{
+  "id": "tactical_marine_template",
+  "name": "Tactical Marine",
+  "type": "Space_Marine_Tactical",
+  "ws": 4,
+  "bs": 4,
+  "s": 4,
+  "t": 4,
+  "w": 1,
+  "a": 1,
+  "i": 4,
+  "ld": 8,
+  "sv": 3,
+  "movement": 6,
+  "weapons": [
+    { "name": "Boltgun", "shots": 1, "S": 4, "AP": 0, "damage": 1 }
+  ]
+}
