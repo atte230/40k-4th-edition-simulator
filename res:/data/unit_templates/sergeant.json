@@ -1,0 +1,20 @@
+{
+  "id": "sergeant_template",
+  "name": "Sergeant",
+  "type": "Space_Marine_Sergeant",
+  "ws": 4,
+  "bs": 4,
+  "s": 4,
+  "t": 4,
+  "w": 1,
+  "a": 2,
+  "i": 4,
+  "ld": 9,
+  "sv": 3,
+  "movement": 6,
+  "weapons": [
+    { "name": "Bolt Pistol", "shots": 1, "S": 4, "AP": 0, "damage": 1 },
+    { "name": "Power Sword", "shots": 1, "S": 4, "AP": -1, "damage": 1 }
+  ],
+  "special_rules": ["Leader", "CombatVeteran"]
+}

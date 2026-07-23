@@ -1,0 +1,20 @@
+{
+  "id": "assault_marine_template",
+  "name": "Assault Marine",
+  "type": "Space_Marine_Assault",
+  "ws": 4,
+  "bs": 4,
+  "s": 4,
+  "t": 4,
+  "w": 1,
+  "a": 2,
+  "i": 5,
+  "ld": 8,
+  "sv": 3,
+  "movement": 8,
+  "weapons": [
+    { "name": "Bolt Pistol", "shots": 1, "S": 4, "AP": 0, "damage": 1 },
+    { "name": "Chainsword", "shots": 1, "S": 4, "AP": 0, "damage": 1, "special_rules": ["HammerOfWrath"] }
+  ],
+  "special_rules": ["JumpPack"]
+}

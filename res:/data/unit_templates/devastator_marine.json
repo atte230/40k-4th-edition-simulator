@@ -1,0 +1,20 @@
+{
+  "id": "devastator_marine_template",
+  "name": "Devastator Marine",
+  "type": "Space_Marine_Devastator",
+  "ws": 4,
+  "bs": 4,
+  "s": 4,
+  "t": 4,
+  "w": 1,
+  "a": 1,
+  "i": 4,
+  "ld": 8,
+  "sv": 3,
+  "movement": 6,
+  "weapons": [
+    { "name": "Heavy Bolter", "shots": 3, "S": 4, "AP": 0, "damage": 1 },
+    { "name": "Lascannon", "shots": 1, "S": 9, "AP": -3, "damage": 3 }
+  ],
+  "special_rules": ["HeavyWeapon"]
+}
