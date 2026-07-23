@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3]
+
+[node name="melee_demo" type="Node3D"]
+
+[node name="Script" type="Script" parent="."]
+script = ExtResource( 1 )
+
+[ext_resource path="res://scenes/demo/melee_demo.gd" type="Script" id=1]
