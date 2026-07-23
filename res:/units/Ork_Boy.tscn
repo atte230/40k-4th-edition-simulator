@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource path="res://units/Unit.gd" type="Script" id=1]
+
+[node name="Ork_Boy" type="Node3D"]
+script = ExtResource( 1 )
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+mesh = CubeMesh {
+  size = Vector3(1, 2, 1)
+}
+
+[node name="Material" type="StandardMaterial3D" parent="Mesh"]
+albedo_color = Color(0.2, 0.7, 0.2)

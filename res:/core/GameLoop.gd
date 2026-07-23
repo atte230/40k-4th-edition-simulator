@@ -7,12 +7,14 @@ extends Node
 # - Connect scenario_started / scenario_ended signals
 # - Spawn units from scenario definitions (best-effort: looks for res://units/<unit_type>.tscn)
 # - Apply campaign results and autosave on scenario end
+# - Use DeploymentManager for deployment-aware spawn placement
 
 @tool
 class_name GameLoop
 
 var scenario_manager: Node = null
 var campaign_manager: Node = null
+var deployment_manager: Node = null
 
 # Where to parent spawned units (set in inspector or discovered at runtime)
 @export_node_path(NodePath) var units_root_path: NodePath = NodePath("/root/Main/Board/Units")
@@ -23,6 +25,7 @@ func _ready() -> void:
 	# Find or create managers
 	scenario_manager = _find_or_create_manager("/root/ScenarioManager", "res://managers/ScenarioManager.gd")
 	campaign_manager = _find_or_create_manager("/root/CampaignManager", "res://managers/CampaignManager.gd")
+	deployment_manager = _find_or_create_manager("/root/DeploymentManager", "res://managers/DeploymentManager.gd")
 
 	# Resolve units root
 	if has_node(units_root_path):
@@ -82,14 +85,38 @@ func _on_scenario_ended(scenario_id:String, result:Dictionary) -> void:
 
 func spawn_forces_from_scenario(scenario:Dictionary) -> void:
 	var roster = scenario.get("enemy_roster", [])
+	# Group unit entries per spawn_zone so we can request positions per zone
+	var zone_map := {}
 	for unit_def in roster:
-		# unit_def expected keys: unit_type, count, spawn_zone
-		var unit_type = unit_def.get("unit_type", "")
-		var count = int(unit_def.get("count", 1))
-		for i in range(count):
-			spawn_unit_by_type(unit_type, unit_def)
+		var zone = unit_def.get("spawn_zone", "opposite")
+		if not zone_map.has(zone):
+			zone_map[zone] = []
+		zone_map[zone].append(unit_def)
 
-func spawn_unit_by_type(unit_type:String, unit_def:Dictionary) -> Node:
+	# For each zone, compute positions and spawn
+	for zone in zone_map.keys():
+		# Total units to place in this zone (sum of counts)
+		var total_count = 0
+		for ud in zone_map[zone]:
+			total_count += int(ud.get("count", 1))
+		# Ask DeploymentManager for positions
+		var positions = []
+		if deployment_manager and deployment_manager.has_method("get_positions"):
+			positions = deployment_manager.call("get_positions", zone, total_count, get_node_or_null("/root/Main/Board"))
+		else:
+			# Fallback: simple line along edge
+			positions = _compute_fallback_positions(zone, total_count)
+
+		# Assign positions to each unit instance
+		var pos_index = 0
+		for ud in zone_map[zone]:
+			var count = int(ud.get("count", 1))
+			for i in range(count):
+				var pos = positions[pos_index] if pos_index < positions.size() else Vector3.ZERO
+				spawn_unit_by_type(ud.get("unit_type", ""), ud, pos)
+				pos_index += 1
+
+func spawn_unit_by_type(unit_type:String, unit_def:Dictionary, position:Vector3 = Vector3.ZERO) -> Node:
 	# Best-effort: look for PackedScene at res://units/<unit_type>.tscn
 	var scene_path = "res://units/%s.tscn" % unit_type
 	if ResourceLoader.exists(scene_path):
@@ -98,26 +125,81 @@ func spawn_unit_by_type(unit_type:String, unit_def:Dictionary) -> Node:
 		# Attempt to set persistent unit id if the Unit script exposes one
 		if inst.has_method("set_unit_id"):
 			inst.call("set_unit_id", "%s_%s" % [unit_type, str(OS.get_unix_time())])
+		# Place at position
+		if inst is Node3D:
+			inst.global_transform.origin = position
 		# Add to units root
 		units_root.add_child(inst)
-		print("GameLoop: spawned unit %s from %s" % [unit_type, scene_path])
+		print("GameLoop: spawned unit %s from %s at %s" % [unit_type, scene_path, str(position)])
 		return inst
 	else:
 		print("GameLoop: no scene found for %s at %s — creating placeholder" % [unit_type, scene_path])
-		# Create a minimal placeholder Node with Unit.gd attached if available
+		# Create a minimal placeholder Node3D with Unit.gd attached if available
 		var unit_scene_script = load("res://units/Unit.gd")
 		var node = Node3D.new()
 		if unit_scene_script:
 			node.set_script(unit_scene_script)
-			node.set_name("%s_placeholder" % unit_type)
+			node.name = "%s_placeholder" % unit_type
 			# Try to set unit_id if method exists
 			if node.has_method("set_unit_id"):
 				node.call("set_unit_id", "%s_%s" % [unit_type, str(OS.get_unix_time())])
+		# Place at position
+		node.global_transform.origin = position
 		units_root.add_child(node)
 		return node
 
-# Utility: manual trigger to end scenario (useful for testing)
-func end_current_scenario_manual(scenario_id:String, victory:bool=true) -> void:
-	var result = {"scenario_id":scenario_id, "victory":victory, "roster_updates":[], "casualties":[]}
-	if scenario_manager:
-		scenario_manager.end_scenario(scenario_id, result)
+func _compute_fallback_positions(zone:String, count:int) -> Array:
+	# Basic fallback: assume board extents if Board not present
+	var board = get_node_or_null("/root/Main/Board")
+	var width = 100.0
+	var depth = 100.0
+	var y = 0.0
+	if board != null:
+		# Try to read bounds from common properties
+		if board.has_meta("width"):
+			width = float(board.get_meta("width"))
+		elif board.has_method("get_width"):
+			width = float(board.call("get_width"))
+		if board.has_meta("depth"):
+			depth = float(board.get_meta("depth"))
+		elif board.has_method("get_depth"):
+			depth = float(board.call("get_depth"))
+
+	var half_w = width * 0.5
+	var half_d = depth * 0.5
+	var deploy_dist = 12.0
+	var positions := []
+	for i in range(count):
+		var t = 0.0
+		if count > 1:
+			t = float(i) / float(count - 1)
+		else:
+			t = 0.5
+		match zone.to_lower():
+			"north":
+				var x = lerp(-half_w + 5.0, half_w - 5.0, t)
+				var z = half_d - deploy_dist
+				positions.append(Vector3(x, y, z))
+			"south":
+				var x = lerp(-half_w + 5.0, half_w - 5.0, t)
+				var z = -half_d + deploy_dist
+				positions.append(Vector3(x, y, z))
+			"east":
+				var z = lerp(-half_d + 5.0, half_d - 5.0, t)
+				var x = half_w - deploy_dist
+				positions.append(Vector3(x, y, z))
+			"west":
+				var z = lerp(-half_d + 5.0, half_d - 5.0, t)
+				var x = -half_w + deploy_dist
+				positions.append(Vector3(x, y, z))
+			"opposite":
+				# place on opposite edge relative to player; default to north
+				var x = lerp(-half_w + 5.0, half_w - 5.0, t)
+				var z = half_d - deploy_dist
+				positions.append(Vector3(x, y, z))
+			_:
+				# default to north
+				var x = lerp(-half_w + 5.0, half_w - 5.0, t)
+				var z = half_d - deploy_dist
+				positions.append(Vector3(x, y, z))
+	return positions
