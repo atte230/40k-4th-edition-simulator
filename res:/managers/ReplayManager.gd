@@ -5,6 +5,8 @@ extends Node
 
 class_name ReplayManager
 
+signal command_applied(ev, cmd_index)
+
 var recording := false
 var commands := []
 var snapshot := []
@@ -147,6 +149,8 @@ func _apply_command(cmd:Dictionary) -> void:
 			if ev.has("rule"):
 				if atk != null and atk.has_method("on_rule_triggered"):
 					atk.call("on_rule_triggered", ev.get("rule"))
+			# emit signal so UI can animate/log
+			emit_signal("command_applied", ev, current_index)
 	else:
 		print("ReplayManager: unknown command type %s" % t)
 
