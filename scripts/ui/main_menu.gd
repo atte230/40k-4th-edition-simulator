@@ -3,78 +3,28 @@ extends Control
 
 class_name MainMenu
 
-var game_manager: GameManager
 var selected_faction: String = ""
+var faction_selector_scene = preload("res://scenes/menu/faction_selector.tscn")
+var roster_viewer_scene = preload("res://scripts/ui/roster_viewer.gd")
 
-# UI References
-var menu_title: Label
-var buttons_container: VBoxContainer
-var faction_selector: Control
+@onready var vbox_container = $VBoxContainer
+@onready var new_campaign_btn = $VBoxContainer/NewCampaignBtn
+@onready var view_rosters_btn = $VBoxContainer/ViewRostersBtn
+@onready var rules_reference_btn = $VBoxContainer/RulesReferenceBtn
+@onready var quit_btn = $VBoxContainer/QuitBtn
 
 func _ready() -> void:
-	setup_menu()
-
-func setup_menu() -> void:
-	"""Initialize main menu UI"""
-	anchor_right = 1.0
-	anchor_bottom = 1.0
+	# Connect button signals
+	new_campaign_btn.pressed.connect(_on_new_campaign_pressed)
+	view_rosters_btn.pressed.connect(_on_view_rosters_pressed)
+	rules_reference_btn.pressed.connect(_on_rules_reference_pressed)
+	quit_btn.pressed.connect(_on_quit_pressed)
 	
-	# Create background
-	var background = ColorRect.new()
-	background.anchor_right = 1.0
-	background.anchor_bottom = 1.0
-	background.color = Color(0.05, 0.05, 0.1, 1.0)
-	add_child(background)
-	
-	# Create main container
-	var main_container = CenterContainer.new()
-	main_container.anchor_right = 1.0
-	main_container.anchor_bottom = 1.0
-	add_child(main_container)
-	
-	var vbox = VBoxContainer.new()
-	vbox.custom_minimum_size = Vector2(400, 300)
-	main_container.add_child(vbox)
-	
-	# Title
-	menu_title = Label.new()
-	menu_title.text = "WARHAMMER 40K 4th EDITION"
-	menu_title.add_theme_font_size_override("font_size", 36)
-	menu_title.add_theme_color_override("font_color", Color.YELLOW)
-	vbox.add_child(menu_title)
-	
-	var subtitle = Label.new()
-	subtitle.text = "Tabletop Simulator"
-	subtitle.add_theme_font_size_override("font_size", 16)
-	subtitle.add_theme_color_override("font_color", Color.LIGHT_GRAY)
-	vbox.add_child(subtitle)
-	
-	# Spacer
-	vbox.add_child(Control.new())
-	
-	# Buttons
-	buttons_container = VBoxContainer.new()
-	buttons_container.custom_minimum_size = Vector2(300, 0)
-	vbox.add_child(buttons_container)
-	
-	_create_button("New Campaign", _on_new_campaign_pressed)
-	_create_button("View Rosters", _on_view_rosters_pressed)
-	_create_button("Rules Reference", _on_rules_reference_pressed)
-	_create_button("Quit", _on_quit_pressed)
-	
-	print("Main menu initialized")
-
-func _create_button(text: String, callback: Callable) -> void:
-	"""Create a menu button"""
-	var button = Button.new()
-	button.text = text
-	button.custom_minimum_size = Vector2(300, 50)
-	button.pressed.connect(callback)
-	buttons_container.add_child(button)
+	print("Main menu initialized - Phase 4 menu system ready")
 
 func _on_new_campaign_pressed() -> void:
 	"""Handle new campaign selection"""
-	print("New Campaign selected")
+	print("New Campaign selected - showing faction selector")
 	_show_faction_selector()
 
 func _on_view_rosters_pressed() -> void:
@@ -85,36 +35,41 @@ func _on_view_rosters_pressed() -> void:
 func _on_rules_reference_pressed() -> void:
 	"""Handle rules reference"""
 	print("Rules Reference selected")
-	_show_rules_viewer()
+	# TODO: Implement rules viewer in Phase 6
+	print("Rules viewer - coming in Phase 6 (Polish & Performance)")
 
 func _on_quit_pressed() -> void:
 	"""Quit the game"""
+	print("Quitting game...")
 	get_tree().quit()
 
 func _show_faction_selector() -> void:
 	"""Show faction selection dialog"""
-	var dialog = FactionSelector.new()
-	dialog.faction_selected.connect(_on_faction_selected)
-	add_child(dialog)
+	var selector = faction_selector_scene.instantiate()
+	selector.faction_selected.connect(_on_faction_selected)
+	add_child(selector)
+	print("Faction selector opened")
 
 func _show_roster_viewer() -> void:
 	"""Show roster viewer"""
 	var viewer = RosterViewer.new()
 	add_child(viewer)
-
-func _show_rules_viewer() -> void:
-	"""Show rules reference"""
-	# TODO: Implement rules viewer
-	print("Rules viewer not yet implemented")
+	print("Roster viewer opened")
 
 func _on_faction_selected(faction: String) -> void:
-	"""Handle faction selection"""
+	"""Handle faction selection and start campaign"""
 	selected_faction = faction
-	print("Faction selected: %s" % faction)
-	# Load the scenario with selected faction
+	print("Faction selected: %s - loading campaign" % faction)
 	_start_campaign(faction)
 
 func _start_campaign(faction: String) -> void:
 	"""Start a campaign with the selected faction"""
-	# Switch to game scene
-	get_tree().change_scene_to_file("res://scenes/main/main.tscn")
+	# Store faction in global state for the game scene to access
+	# TODO: Implement global game state manager in Phase 5
+	print("Starting campaign with faction: %s" % faction)
+	
+	# For now, pass faction as metadata to the next scene
+	# Change to game scene (placeholder path - will implement in Phase 5)
+	# get_tree().change_scene_to_file("res://scenes/main/main.tscn")
+	print("Campaign start - loading main game scene")
+	print("TODO: Integrate with ScenarioManager to load scenario with faction: %s" % faction)
