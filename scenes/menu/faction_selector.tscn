@@ -1,0 +1,62 @@
+[gd_scene load_steps=2 format=3 uid="uid://clkpkwj0p1xw7"]
+
+[ext_resource type="Script" path="res://scripts/ui/faction_selector.gd"]
+
+[node name="FactionSelector" type="Control"]
+layout_mode = 1
+anchors_left = 0.0
+anchors_top = 0.0
+anchors_right = 1.0
+anchors_bottom = 1.0
+script = ExtResource("faction_selector.gd")
+
+[node name="ColorRect" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_left = 0.0
+anchors_top = 0.0
+anchors_right = 1.0
+anchors_bottom = 1.0
+color = Color(0, 0, 0, 0.7)
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_left = 0.5
+anchors_top = 0.5
+anchors_right = 0.5
+anchors_bottom = 0.5
+offset_left = -200.0
+offset_top = -150.0
+offset_right = 200.0
+offset_bottom = 150.0
+alignment = 1
+
+[node name="TitleLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "Choose Your Faction"
+theme_override_font_sizes/font_size = 32
+
+[node name="DescriptionLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "Select which faction you will command in battle"
+theme_override_font_sizes/font_size = 14
+autowrap_mode = 1
+
+[node name="Spacer1" type="Control" parent="VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 2
+
+[node name="SpaceMarinesBtn" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "Space Marines
+Elite Warriors (4+ Armor Save)"
+custom_minimum_size = Vector2(400, 60)
+
+[node name="OrksBtn" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "Orks
+Brutal Fighters (6+ Armor Save)"
+custom_minimum_size = Vector2(400, 60)
+
+[node name="Spacer2" type="Control" parent="VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 2
